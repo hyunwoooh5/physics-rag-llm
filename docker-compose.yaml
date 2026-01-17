@@ -27,7 +27,21 @@ services:
     environment:
       - QDRANT_URL=http://qdrant:6333
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - PHOENIX_COLLECTOR_ENDPOINT=http://phoenix:4317
     depends_on:
       - qdrant
+      - phoenix    
+    networks:
+      - rag-network
+
+  # Phoenix for monitoring
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    container_name: phoenix_server
+    ports:
+      - "6006:6006"
+      - "4317:4317"
+    environment:
+      - PHOENIX_PORT=6006
     networks:
       - rag-network

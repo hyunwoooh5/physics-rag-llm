@@ -5,6 +5,14 @@ from contextlib import asynccontextmanager
 
 from rag import RAGService
 
+from phoenix.otel import register
+
+tracer_provider = register(
+    project_name="physics-rag",
+    endpoint="http://phoenix:4317",  # Docker Compose
+    auto_instrument=True
+)
+
 
 class QueryRequest(BaseModel):
     query: str
@@ -18,7 +26,6 @@ class APIResponse(BaseModel):
 
 
 rag_service = RAGService()
-
 
 
 @asynccontextmanager

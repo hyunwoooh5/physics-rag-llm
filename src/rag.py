@@ -9,7 +9,11 @@ from google import genai
 from google.genai.types import GenerateContentConfig
 from pydantic import BaseModel, Field
 
+from opentelemetry import trace
+from openinference.semconv.trace import SpanAttributes, OpenInferenceSpanKindValues
+
 load_dotenv()
+tracer = trace.get_tracer(__name__)
 
 # configuration
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
@@ -51,25 +55,37 @@ class RAGService:
         return next(self.embedding_model.embed([text])).tolist()
 
     def _retrieve_context(self, query: str, top_k: int = 5) -> List[str]:
-        query_vector = self._get_query_vector(query)
+        with tracer.start_as_current_span("retrieve_documents") as span:
+            span.set_attribute(SpanAttributes.OPENINFERENCE_SPAN_KIND,
+                               OpenInferenceSpanKindValues.RETRIEVER)
+            span.set_attribute(SpanAttributes.INPUT_VALUE, query)
 
-        search_result = self.qdrant_client.query_points(
-            collection_name=COLLECTION_NAME,
-            query=query_vector,
-            using="default",
-            limit=top_k,
-            with_payload=True
-        )
+            query_vector = self._get_query_vector(query)
 
-        contexts = []
-        for hit in search_result.points:
-            if hit.payload:
-                title = hit.payload.get("title", "Unknown title")
-                preprint_date = hit.payload.get("preprint_date", "None")
-                abstract = hit.payload.get("abstract", "No abstract")
+            search_result = self.qdrant_client.query_points(
+                collection_name=COLLECTION_NAME,
+                query=query_vector,
+                using="default",
+                limit=top_k,
+                with_payload=True
+            )
 
-                formatted_text = f"Title: {title} ({preprint_date})\nAbstract: {abstract}"
-                contexts.append(formatted_text)
+            contexts = []
+            doc_contents = []
+            for hit in search_result.points:
+                if hit.payload:
+                    title = hit.payload.get("title", "Unknown title")
+                    preprint_date = hit.payload.get("preprint_date", "None")
+                    abstract = hit.payload.get("abstract", "No abstract")
+
+                    formatted_text = f"Title: {title} ({preprint_date})\nAbstract: {abstract}"
+                    contexts.append(formatted_text)
+                    doc_contents.append({"page_content": formatted_text, "metadata": {
+                                        "id": hit.id, "score": hit.score}})
+
+                if doc_contents:
+                    span.set_attribute(
+                        SpanAttributes.RETRIEVAL_DOCUMENTS, json.dumps(doc_contents))
 
         return contexts
 
@@ -78,36 +94,42 @@ class RAGService:
             raise RuntimeError(
                 "RAG service is not initialized. Call load_resources() first")
 
-        context_list = self._retrieve_context(query, top_k)
+        with tracer.start_as_current_span("rag_execution") as root_span:
+            root_span.set_attribute(SpanAttributes.INPUT_VALUE, query)
+            context_list = self._retrieve_context(query, top_k)
 
-        context_text = "\n\n---\n\n".join(context_list)
+            context_text = "\n\n---\n\n".join(context_list)
 
-        prompt_template = """
-        You are an expert theoretical physicist assisting a junior researcher. 
-        Use the following pieces of retrieved context to answer the question. 
-        If the answer is not in the context, just say that you don't know based on the provided documents.
+            prompt_template = """
+            You are an expert theoretical physicist assisting a junior researcher. 
+            Use the following pieces of retrieved context to answer the question. 
+            If the answer is not in the context, just say that you don't know based on the provided documents.
 
-        Question: {query}
+            Question: {query}
 
-        Context (Retrieved Papers): {context_text}
+            Context (Retrieved Papers): {context_text}
 
-        """.strip()
+            """.strip()
 
-        prompt = prompt_template.format(query=query, context_text=context_text)
+            prompt = prompt_template.format(
+                query=query, context_text=context_text)
 
-        response = self.genai_client.models.generate_content(
-            model=GENAI_MODEL_NAME,
-            contents=prompt,
-            config=GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=RAGOutputSchema
+            response = self.genai_client.models.generate_content(
+                model=GENAI_MODEL_NAME,
+                contents=prompt,
+                config=GenerateContentConfig(
+                    response_mime_type="application/json",
+                    response_schema=RAGOutputSchema
+                )
             )
-        )
 
-        if not response.text:
-            raise RuntimeError("Empty response from Gemini LLM")
+            if not response.text:
+                raise RuntimeError("Empty response from Gemini LLM")
 
-        parsed_output = json.loads(response.text)
+            parsed_output = json.loads(response.text)
+
+            root_span.set_attribute(
+                SpanAttributes.OUTPUT_VALUE, parsed_output["answer"])
 
         return {
             "answer": parsed_output["answer"],
