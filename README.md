@@ -12,7 +12,7 @@ Unlike standard keyword search, this system utilizes dense vector embeddings to 
 ## Dataset
 
 
-The database is populated using the **InspireHEP API**, ensuring high-quality metadata extraction.
+The database is populated using the **arXiv API**, ensuring high-quality metadata extraction.
 
 * **Source:** Recent 10,000 papers.
 * **Primary Categories:**
@@ -21,7 +21,7 @@ The database is populated using the **InspireHEP API**, ensuring high-quality me
 
 * **Content:** Title, Abstract, and Preprint Date.
 
-*Note: While the current deployment focuses on Nuclear and Lattice theory, the ingestion pipeline in [src/ingest.py](https://www.google.com/search?q=src/ingest.py) is modular. It can be adapted for other arXiv categories such as `hep-th` (High Energy Physics - Theory) or `gr-qc` (General Relativity and Quantum Cosmology).*
+*Note: While the current deployment focuses on Nuclear and Lattice theory, the ingestion pipeline in [src/ingest.py](src/ingest.py) is modular. It can be adapted for other arXiv categories such as `hep-th` (High Energy Physics - Theory) or `gr-qc` (General Relativity and Quantum Cosmology).*
 
 
 ## Technologies
@@ -53,7 +53,18 @@ uv sync --locked --no-dev
 
 ```
 
-### 2. Ingestion
+### 2. Environment Configuration
+
+Launch Qdrant to save data in a vector store:
+
+```bash
+docker run -p 6333:6333 -p 6334:6334 \
+   -v "$(pwd)/qdrant_storage:/qdrant/storage:z" \
+   qdrant/qdrant
+```
+
+
+### 3. Ingestion
 
 Populate the Qdrant vector store with the physics dataset:
 
@@ -188,7 +199,7 @@ We use **Phoenix** for tracing execution, debugging retrieval context, and monit
 ├── pyproject.toml                        # Project configuration & dependencies
 ├── README.md
 ├── src
-│   ├── ingest.py                         # ETL pipeline (InspireHEP -> Qdrant)
+│   ├── ingest.py                         # ETL pipeline (arXiv -> Qdrant)
 │   ├── rag.py                            # RAG inference logic
 │   └── serve.py                          # FastAPI application
 ├── test.py                               # Unit/Integration tests
