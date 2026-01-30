@@ -11,11 +11,12 @@ Unlike standard keyword search, this system utilizes dense vector embeddings to 
 
 ## Dataset
 
+The dataset is populated using one of the following methods:
 
-The database is populated using the **arXiv API**, ensuring high-quality metadata extraction.
+* **arXiv API**: For fetching the most recent papers directly from arXiv.
+* **Kaggle arXiv Dataset**: For bulk ingestion of historical data using the [Kaggle arXiv Dataset](https://www.kaggle.com/datasets/Cornell-University/arxiv).
 
-* **Source:** Recent 10,000 papers.
-* **Primary Categories:**
+**Primary Categories:**
 * `nucl-th` (Nuclear Theory)
 * `hep-lat` (Lattice Field Theory)
 
@@ -49,8 +50,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 Install dependencies with a locked environment:
 
 ```bash
-uv sync --locked --no-dev
-
+uv sync --locked
 ```
 
 ### 2. Environment Configuration
@@ -58,7 +58,7 @@ uv sync --locked --no-dev
 Launch Qdrant to save data in a vector store:
 
 ```bash
-docker run -p 6333:6333 -p 6334:6334 \
+docker run --rm -p 6333:6333 -p 6334:6334 \
    -v "$(pwd)/qdrant_storage:/qdrant/storage:z" \
    qdrant/qdrant
 ```
@@ -66,11 +66,26 @@ docker run -p 6333:6333 -p 6334:6334 \
 
 ### 3. Ingestion
 
-Populate the Qdrant vector store with the physics dataset:
+You can populate the Qdrant vector store using either the API or the local JSON dataset.
+
+**Option A: Ingest via arXiv API (Default)**
+Best for fetching the latest papers or specific queries.
 
 ```bash
 uv run python src/ingest.py
+```
 
+
+
+**Option B: Ingest via Kaggle Dataset**
+Best for large-scale bulk ingestion.
+
+1. Download `arxiv-metadata-oai-snapshot.json` from [Kaggle](https://www.kaggle.com/datasets/Cornell-University/arxiv).
+2. Place the JSON file in [data](data/).
+3. Run the JSON ingestion script:
+
+```bash
+uv run python src/ingest_json.py
 ```
 
 
@@ -191,6 +206,7 @@ We use **Phoenix** for tracing execution, debugging retrieval context, and monit
 │   ├── rag_results_eval_flash.json       # Eval outputs (Flash)
 │   └── rag_results_test.json             # Test dataset outputs
 ├── docker-compose.yaml                   # Container orchestration
+├── Dockerfile                            # Container for deployment
 ├── LICENSE
 ├── notebooks
 │   ├── ground_truth.ipynb                # Ground truth generation logic
@@ -199,6 +215,7 @@ We use **Phoenix** for tracing execution, debugging retrieval context, and monit
 ├── pyproject.toml                        # Project configuration & dependencies
 ├── README.md
 ├── src
+│   ├── ingest_json.py                    # ETL pipeline (json -> Qdrant)
 │   ├── ingest.py                         # ETL pipeline (arXiv -> Qdrant)
 │   ├── rag.py                            # RAG inference logic
 │   └── serve.py                          # FastAPI application

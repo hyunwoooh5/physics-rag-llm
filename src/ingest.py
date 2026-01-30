@@ -142,4 +142,4 @@ def ingest_data(target_count=1000):
 
 
 if __name__ == "__main__":
-    ingest_data(target_count=10000)
+    ingest_data(target_count=5000)
