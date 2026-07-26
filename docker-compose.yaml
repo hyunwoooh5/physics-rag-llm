@@ -45,3 +45,16 @@ services:
       - PHOENIX_PORT=6006
     networks:
       - rag-network
+
+  # Define the Streamlit UI service
+  streamlit-ui:
+    build: 
+      context: .
+      dockerfile: Dockerfile.ui
+    container_name: streamlit_ui_service
+    ports:
+      - "8501:8501"
+    depends_on:
+      - rag-api
+    networks:
+      - rag-network

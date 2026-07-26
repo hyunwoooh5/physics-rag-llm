@@ -1,0 +1,26 @@
+# Use the official lightweight Python 3.13 slim image
+FROM python:3.13.11-slim-bookworm
+
+# Copy the uv package manager
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Set working directory
+WORKDIR /code
+
+# Add virtual environment to PATH
+ENV PATH="/code/.venv/bin:$PATH"
+
+# Copy dependency files
+COPY "pyproject.toml" "uv.lock" ".python-version" ./
+
+# Install dependencies
+RUN uv sync --locked --no-dev
+
+# Copy application source file
+COPY "src/app.py" ./
+
+# Expose Streamlit default port
+EXPOSE 8501
+
+# Launch the app using uv
+ENTRYPOINT ["uv", "run", "streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]

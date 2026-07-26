@@ -32,6 +32,7 @@ The dataset is populated using one of the following methods:
 * **Embeddings:** `fastembed` (Dense retrieval)
 * **LLM:** `Google Gemini`
 * **API:** `FastAPI`
+* **Frontend:** `Streamlit`
 * **Observability:** `Phoenix` (Arize AI)
 
 
@@ -129,8 +130,8 @@ curl -X POST "http://localhost:8000/rag" \
 
 ### Web Interface
 
+* **Chat Interface (Streamlit):** [http://localhost:8501](http://localhost:8501)
 * **REST API Documentation (Swagger UI):** [http://localhost:8080/docs](http://localhost:8080/docs) (mapped via Docker)
-
 
 
 
@@ -207,6 +208,7 @@ We use **Phoenix** for tracing execution, debugging retrieval context, and monit
 │   └── rag_results_test.json             # Test dataset outputs
 ├── docker-compose.yaml                   # Container orchestration
 ├── Dockerfile                            # Container for deployment
+├── Dockerfile.ui                         # Container for deployment (Streamlit UI)
 ├── LICENSE
 ├── notebooks
 │   ├── ground_truth.ipynb                # Ground truth generation logic
@@ -218,6 +220,7 @@ We use **Phoenix** for tracing execution, debugging retrieval context, and monit
 │   ├── ingest_json.py                    # ETL pipeline (json -> Qdrant)
 │   ├── ingest.py                         # ETL pipeline (arXiv -> Qdrant)
 │   ├── rag.py                            # RAG inference logic
+│   ├── ui.py                             # Streamlit frontend application
 │   └── serve.py                          # FastAPI application
 ├── test.py                               # Unit/Integration tests
 └── uv.lock                               # Dependency lockfile
